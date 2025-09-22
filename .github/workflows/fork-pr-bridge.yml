@@ -1,0 +1,160 @@
+name: Fork PR Bridge for Preview Deployments
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  create-bridge-pr:
+    # Only run for PRs from forks
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Add fork as remote
+        run: |
+          git remote add fork ${{ github.event.pull_request.head.repo.clone_url }}
+          git fetch fork
+      
+      - name: Create bridge branch
+        id: bridge_branch
+        run: |
+          # Create a unique branch name for this fork PR
+          BRIDGE_BRANCH="bridge-pr-${{ github.event.pull_request.number }}"
+          echo "branch_name=$BRIDGE_BRANCH" >> $GITHUB_OUTPUT
+          
+          # Create and checkout the bridge branch from the fork's branch
+          git checkout -b $BRIDGE_BRANCH fork/${{ github.event.pull_request.head.ref }}
+          
+          # Push the bridge branch to main repository
+          git push origin $BRIDGE_BRANCH
+      
+      - name: Check if bridge PR already exists
+        id: check_pr
+        run: |
+          # Check if a bridge PR already exists
+          EXISTING_PR=$(gh pr list --head "${{ steps.bridge_branch.outputs.branch_name }}" --base main --json number --jq '.[0].number // empty')
+          echo "existing_pr=$EXISTING_PR" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create labels if they don't exist
+        run: |
+          # Create labels if they don't exist (ignore errors if they already exist)
+          gh label create "bridge-pr" --description "Automated bridge PR for fork contributions" --color "0366d6" || true
+          gh label create "preview-deployment" --description "PR that triggers preview deployment" --color "28a745" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create bridge PR
+        if: steps.check_pr.outputs.existing_pr == ''
+        run: |
+          # Create PR title and body with reference to original fork PR
+          PR_TITLE="[Bridge] ${{ github.event.pull_request.title }}"
+          
+          PR_BODY="🔗 **Bridge PR for Fork Contribution**
+          
+          This is an automated bridge PR created for preview deployment purposes.
+          
+          **Original Fork PR:** ${{ github.event.pull_request.html_url }}
+          **Author:** @${{ github.event.pull_request.user.login }}
+          **Fork Repository:** ${{ github.event.pull_request.head.repo.full_name }}
+          
+          ---
+          
+          ${{ github.event.pull_request.body }}
+          
+          ---
+          
+          ⚠️ **Important Notes:**
+          - This PR is automatically managed and synced with the fork PR
+          - Do not push commits directly to this branch
+          - This PR will be automatically closed when the original fork PR is closed/merged
+          - Review and approve the original fork PR, not this one"
+          
+          gh pr create \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            --head "${{ steps.bridge_branch.outputs.branch_name }}" \
+            --base main \
+            --label "bridge-pr,preview-deployment"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update existing bridge PR
+        if: steps.check_pr.outputs.existing_pr != ''
+        run: |
+          # Force update the existing bridge branch
+          git push origin ${{ steps.bridge_branch.outputs.branch_name }} --force
+          
+          # Update PR body with latest info
+          PR_BODY="🔗 **Bridge PR for Fork Contribution** (Updated: $(date))
+          
+          This is an automated bridge PR created for preview deployment purposes.
+          
+          **Original Fork PR:** ${{ github.event.pull_request.html_url }}
+          **Author:** @${{ github.event.pull_request.user.login }}
+          **Fork Repository:** ${{ github.event.pull_request.head.repo.full_name }}
+          
+          ---
+          
+          ${{ github.event.pull_request.body }}
+          
+          ---
+          
+          ⚠️ **Important Notes:**
+          - This PR is automatically managed and synced with the fork PR
+          - Do not push commits directly to this branch
+          - This PR will be automatically closed when the original fork PR is closed/merged
+          - Review and approve the original fork PR, not this one"
+          
+          gh pr edit ${{ steps.check_pr.outputs.existing_pr }} --body "$PR_BODY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup-bridge-pr:
+    # Clean up bridge PR when original fork PR is closed
+    if: github.event.pull_request.head.repo.full_name != github.repository && (github.event.action == 'closed' || github.event.action == 'merged')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Close bridge PR and delete branch
+        run: |
+          BRIDGE_BRANCH="bridge-pr-${{ github.event.pull_request.number }}"
+          
+          # Find and close the bridge PR
+          BRIDGE_PR=$(gh pr list --head "$BRIDGE_BRANCH" --base main --json number --jq '.[0].number // empty')
+          
+          if [ ! -z "$BRIDGE_PR" ]; then
+            gh pr close $BRIDGE_PR --comment "Automatically closing bridge PR as the original fork PR has been ${{ github.event.action }}."
+            
+            # Delete the bridge branch
+            git push origin --delete $BRIDGE_BRANCH || true
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
