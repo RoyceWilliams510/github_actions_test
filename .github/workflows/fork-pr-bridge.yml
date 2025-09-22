@@ -54,6 +54,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Create labels if they don't exist
+        run: |
+          # Create labels if they don't exist (ignore errors if they already exist)
+          gh label create "bridge-pr" --description "Automated bridge PR for fork contributions" --color "0366d6" || true
+          gh label create "preview-deployment" --description "PR that triggers preview deployment" --color "28a745" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Create bridge PR
         if: steps.check_pr.outputs.existing_pr == ''
         run: |
