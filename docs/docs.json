@@ -53,7 +53,7 @@
           {
             "item":"Kubernetes",
             "pages":[
-              "k9/index",
+              "k9s/index",
               {
                 "group": "AI tools",
                 "pages": [
