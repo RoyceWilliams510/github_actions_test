@@ -48,6 +48,25 @@
         ]
       },
       {
+        "tab":"testing",
+        "menu":[
+          {
+            "item":"Kubernetes",
+            "pages":[
+              "k9/index",
+              {
+                "group": "AI tools",
+                "pages": [
+                  "ai-tools/cursor",
+                  "ai-tools/claude-code",
+                  "ai-tools/windsurf"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         "tab": "API reference",
         "groups": [
           {
@@ -112,6 +131,64 @@
      "vscode"
    ]
   },
+  "redirects": [
+    {
+      "source": "/k9s/advanced-deployments/",
+      "destination": "/k9s"
+    },
+    {
+      "source": "/k9s/deployment-guide/",
+      "destination": "/k9s"
+    },
+    {
+      "source": "/k9s/developer-guide/",
+      "destination": "/k9s"
+    },
+    {
+      "source": "/k9s/installation/install/",
+      "destination": "/k9s"
+    },
+    {
+      "source": "/k9s/guides/quickstart/",
+      "destination": "/getting-started/kubernetes/ingress"
+    },
+    {
+      "source": "/k9s/developer-guide/architecture/",
+      "destination": "/k9s/installation/architecture/"
+    },
+    {
+      "source": "/k9s/developer-guide/releasing/",
+      "destination": "/k9s/releasing/"
+    },
+    {
+      "source": "/k9s/developer-guide/internal-crds/",
+      "destination": "/k9s/crds/"
+    },
+    {
+      "source": "/k9s/getting-started-gwapi/",
+      "destination": "/k9s/guides/using-gwapi"
+    },
+    {
+      "source": "/k9s/getting-started-kic/",
+      "destination": "/k9s/guides/using-ingresses/"
+    },
+    {
+      "source": "/k9s/custom-domain/",
+      "destination": "/k9s/guides/custom-domain/"
+    },
+    {
+      "source": "/k9s/user-guide/",
+      "destination": "/k9s/"
+    },
+    {
+      "source": "/k9s/with-edges/",
+      "destination": "/k9s/guides/using-ingresses/"
+    },
+    {
+      "source": "/using-ngrok-with/k9s/",
+      "destination": "/k9s"
+    }
+  ],
   "footer": {
     "socials": {
       "x": "https://x.com/mintlify",
